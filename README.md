@@ -132,6 +132,8 @@ run_windows.bat
 2. 公開用の静的 Web サイトを生成
 3. GitHub Pages へデプロイ
 
+初回のみ、GitHub の `Settings > Pages` で公開元を `GitHub Actions` にしてください。
+
 公開 URL は通常、以下の形になります。
 
 ```text
