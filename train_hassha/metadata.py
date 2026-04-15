@@ -20,7 +20,7 @@ class ChangelogEntry:
 
 @dataclass(frozen=True)
 class AppMetadata:
-    version: str = "1.0"
+    version: str = "1.1"
     changelog: tuple[ChangelogEntry, ...] = field(default_factory=tuple)
 
 
@@ -47,8 +47,18 @@ def candidate_metadata_paths() -> list[Path]:
 
 def default_app_metadata() -> AppMetadata:
     return AppMetadata(
-        version="1.0",
+        version="1.1",
         changelog=(
+            ChangelogEntry(
+                version="1.1",
+                date="2026-04-15",
+                title="公開版との更新連携を追加",
+                items=(
+                    "ローカル版が公開中の Web 版ダイヤと比較して更新案内を出すように改善",
+                    "Web 版が公式サイトを日次確認して差分があるときだけ自動更新できるように準備",
+                    "公開用のダイヤハッシュと更新状態 JSON を追加",
+                ),
+            ),
             ChangelogEntry(
                 version="1.0",
                 date="2026-04-15",

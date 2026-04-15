@@ -7,6 +7,12 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from .config import DEFAULT_LINE
+from .line_status import (
+    build_line_status_summary,
+    build_published_status_url,
+    compare_line_statuses,
+    fetch_published_line_status,
+)
 from .metadata import load_app_metadata
 from .settings import load_app_settings
 from .storage import get_line_data_path, load_line_data
@@ -28,6 +34,7 @@ CARD_TIME_ALERT = "#d64541"
 CARD_DEST_NORMAL = "#17313b"
 CARD_DEST_ALERT = "#d64541"
 CARD_META_NORMAL = "#5b7078"
+PUBLISHED_STATUS_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 
 class TrainHasshaApp:
@@ -35,12 +42,13 @@ class TrainHasshaApp:
         self.root = root
         self.metadata = load_app_metadata()
         self.root.title(f"トレイン発車 ver{self.metadata.version}")
-        self.root.geometry("980x740")
+        self.root.geometry("980x760")
         self.root.minsize(900, 640)
 
         self.data: dict | None = None
         self.settings = load_app_settings()
         self.fetch_queue: queue.Queue[tuple[str, object]] = queue.Queue()
+        self.update_check_queue: queue.Queue[tuple[str, object]] = queue.Queue()
 
         self.station_var = tk.StringVar()
         self.direction_var = tk.StringVar()
@@ -49,6 +57,7 @@ class TrainHasshaApp:
         self.day_type_var = tk.StringVar()
         self.status_var = tk.StringVar(value="保存済み時刻表を読み込み中です。")
         self.fetch_info_var = tk.StringVar(value="未取得")
+        self.remote_status_var = tk.StringVar(value="確認待ち")
         self.path_var = tk.StringVar(value=str(get_line_data_path(DEFAULT_LINE.line_id)))
         self.debug_mode_var = tk.BooleanVar(value=False)
         self.debug_time_var = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -56,12 +65,17 @@ class TrainHasshaApp:
         self.card_vars: list[dict[str, tk.StringVar]] = []
         self.card_widgets: list[dict[str, tk.Widget]] = []
         self._blink_on = False
+        self._update_check_in_progress = False
+        self._prompted_remote_hashes: set[str] = set()
 
         self._configure_style()
         self._build_ui()
         self._load_saved_data()
         self._tick()
         self._poll_fetch_queue()
+        self._poll_update_check_queue()
+        self._start_published_update_check()
+        self.root.after(PUBLISHED_STATUS_CHECK_INTERVAL_MS, self._schedule_published_update_check)
 
     def _configure_style(self) -> None:
         style = ttk.Style()
@@ -128,6 +142,9 @@ class TrainHasshaApp:
         fetch_button = ttk.Button(control_panel, text="時刻表を取得して保存", style="Action.TButton", command=self._start_fetch)
         fetch_button.grid(row=0, column=4, sticky="e", padx=(18, 0), pady=6)
         self.fetch_button = fetch_button
+        check_button = ttk.Button(control_panel, text="公開版を確認", style="Action.TButton", command=self._start_published_update_check)
+        check_button.grid(row=0, column=5, sticky="e", padx=(10, 0), pady=6)
+        self.check_button = check_button
 
         ttk.Label(control_panel, text="現在時刻", style="Label.TLabel").grid(row=1, column=0, sticky="nw", padx=(0, 10), pady=(10, 6))
         clock_panel = ttk.Frame(control_panel, style="Panel.TFrame")
@@ -175,9 +192,18 @@ class TrainHasshaApp:
         ttk.Label(control_panel, text="最終取得", style="Label.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=6)
         ttk.Label(control_panel, textvariable=self.fetch_info_var, style="Value.TLabel").grid(row=2, column=1, columnspan=5, sticky="w", pady=6)
 
-        ttk.Label(control_panel, text="保存先", style="Label.TLabel").grid(row=3, column=0, sticky="nw", padx=(0, 10), pady=6)
-        ttk.Label(control_panel, textvariable=self.path_var, style="Label.TLabel", wraplength=760).grid(
+        ttk.Label(control_panel, text="公開版確認", style="Label.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 10), pady=6)
+        ttk.Label(control_panel, textvariable=self.remote_status_var, style="Value.TLabel").grid(
             row=3,
+            column=1,
+            columnspan=5,
+            sticky="w",
+            pady=6,
+        )
+
+        ttk.Label(control_panel, text="保存先", style="Label.TLabel").grid(row=4, column=0, sticky="nw", padx=(0, 10), pady=6)
+        ttk.Label(control_panel, textvariable=self.path_var, style="Label.TLabel", wraplength=760).grid(
+            row=4,
             column=1,
             columnspan=5,
             sticky="w",
@@ -250,6 +276,114 @@ class TrainHasshaApp:
         self.fetch_info_var.set(self.data.get("fetched_at", "不明"))
         self._populate_station_choices()
         self.status_var.set("保存済み時刻表を読み込みました。")
+
+    def _local_status_summary(self) -> dict | None:
+        if not self.data:
+            return None
+        return build_line_status_summary(self.data)
+
+    def _published_status_url(self) -> str:
+        return build_published_status_url(self.settings.published_site_url, DEFAULT_LINE.line_id)
+
+    def _schedule_published_update_check(self) -> None:
+        self._start_published_update_check()
+        self.root.after(PUBLISHED_STATUS_CHECK_INTERVAL_MS, self._schedule_published_update_check)
+
+    def _start_published_update_check(self) -> None:
+        if self._update_check_in_progress:
+            return
+        if not self.settings.published_site_url:
+            self.remote_status_var.set("公開版 URL が未設定です")
+            return
+
+        self._update_check_in_progress = True
+        self.remote_status_var.set("公開版を確認中です...")
+        self.check_button.state(["disabled"])
+        worker = threading.Thread(target=self._published_update_check_worker, daemon=True)
+        worker.start()
+
+    def _published_update_check_worker(self) -> None:
+        try:
+            remote_status = fetch_published_line_status(self._published_status_url())
+            comparison = compare_line_statuses(self._local_status_summary(), remote_status)
+        except Exception as exc:  # noqa: BLE001
+            self.update_check_queue.put(("error", exc))
+            return
+
+        self.update_check_queue.put(("success", comparison))
+
+    def _poll_update_check_queue(self) -> None:
+        try:
+            event, payload = self.update_check_queue.get_nowait()
+        except queue.Empty:
+            self.root.after(200, self._poll_update_check_queue)
+            return
+
+        self._update_check_in_progress = False
+        self.check_button.state(["!disabled"])
+
+        if event == "success":
+            assert isinstance(payload, dict)
+            self._handle_published_update_result(payload)
+        else:
+            self.remote_status_var.set("公開版を確認できません")
+
+        self.root.after(200, self._poll_update_check_queue)
+
+    def _handle_published_update_result(self, comparison: dict) -> None:
+        relation = comparison.get("relation", "different")
+        remote_status = comparison.get("remote_status") or {}
+        remote_fetched_at = remote_status.get("timetable_fetched_at") or remote_status.get("timetable_fetched_at_utc") or "不明"
+
+        if relation == "same":
+            self.remote_status_var.set(f"公開版と同じです ({remote_fetched_at})")
+            return
+
+        if relation == "local_newer":
+            self.remote_status_var.set("ローカル版の方が新しいです")
+            return
+
+        if relation == "local_missing":
+            self.remote_status_var.set(f"公開版にダイヤがあります ({remote_fetched_at})")
+            self._prompt_to_refresh_from_official(remote_status, relation)
+            return
+
+        if relation == "remote_newer":
+            self.remote_status_var.set(f"公開版に新しいダイヤがあります ({remote_fetched_at})")
+            self._prompt_to_refresh_from_official(remote_status, relation)
+            return
+
+        self.remote_status_var.set("公開版と内容が異なります")
+        self._prompt_to_refresh_from_official(remote_status, relation)
+
+    def _prompt_to_refresh_from_official(self, remote_status: dict, relation: str) -> None:
+        remote_hash = str(remote_status.get("data_hash") or "")
+        if remote_hash and remote_hash in self._prompted_remote_hashes:
+            return
+        if remote_hash:
+            self._prompted_remote_hashes.add(remote_hash)
+
+        remote_fetched_at = remote_status.get("timetable_fetched_at") or remote_status.get("timetable_fetched_at_utc") or "不明"
+        if relation == "local_missing":
+            prompt = (
+                f"公開中の Web 版には {remote_fetched_at} 時点のダイヤがあります。\n"
+                "公式サイトから取得してローカルへ保存しますか？"
+            )
+        elif relation == "remote_newer":
+            prompt = (
+                f"公開中の Web 版には、ローカル版より新しい {remote_fetched_at} 時点のダイヤがあります。\n"
+                "公式サイトから取得してローカルへ保存しますか？"
+            )
+        else:
+            prompt = (
+                "公開中の Web 版とローカル版の内容が異なります。\n"
+                "公式サイトから取得してローカルへ保存しますか？"
+            )
+
+        if messagebox.askyesno("トレイン発車", prompt):
+            self._start_fetch()
+        else:
+            self.status_var.set("公開版との差分を確認しました。必要になったら取得ボタンで更新できます。")
 
     def _populate_station_choices(self) -> None:
         if not self.data:
@@ -401,6 +535,8 @@ class TrainHasshaApp:
             self._set_card_alert(index, departure["minutes_until"] <= 5)
 
     def _start_fetch(self) -> None:
+        if "disabled" in self.fetch_button.state():
+            return
         self.fetch_button.state(["disabled"])
         self.status_var.set("公式サイトから時刻表を取得して保存しています。")
 
@@ -431,6 +567,7 @@ class TrainHasshaApp:
             self.path_var.set(str(payload["path"]))
             self.fetch_info_var.set(self.data.get("fetched_at", "不明"))
             self._populate_station_choices()
+            self.remote_status_var.set("公開版との差分を再確認できます")
             self.status_var.set("時刻表を取得して保存しました。保存済みデータで案内を更新しています。")
             messagebox.showinfo("トレイン発車", "時刻表を取得して保存しました。")
         else:

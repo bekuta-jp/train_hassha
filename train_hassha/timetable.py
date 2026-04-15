@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import re
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from .config import DEFAULT_LINE, LineConfig
 from .holidays import is_japanese_holiday
+from .line_status import compute_line_data_hash
 from .storage import save_line_data
 
 
@@ -221,13 +222,18 @@ def fetch_line_data(config: LineConfig = DEFAULT_LINE) -> dict[str, Any]:
         station_html = _download_html(session, station_meta["timetable_url"])
         stations.append(_parse_station_page(station_meta, station_html))
 
-    return {
+    fetched_at_local = datetime.now().replace(microsecond=0)
+    fetched_at_utc = datetime.now(timezone.utc).replace(microsecond=0)
+    data = {
         "line_id": config.line_id,
         "line_name": config.line_name,
         "source_url": config.route_page_url,
-        "fetched_at": datetime.now().isoformat(timespec="seconds"),
+        "fetched_at": fetched_at_local.isoformat(timespec="seconds"),
+        "fetched_at_utc": fetched_at_utc.isoformat(timespec="seconds"),
         "stations": sorted(stations, key=lambda station: station_code_sort_key(station["station_code"])),
     }
+    data["data_hash"] = compute_line_data_hash(data)
+    return data
 
 
 def fetch_and_save_line(config: LineConfig = DEFAULT_LINE) -> tuple[dict[str, Any], str]:

@@ -6,6 +6,7 @@ import shutil
 from typing import Any
 
 from .config import DEFAULT_LINE
+from .line_status import build_published_line_status, status_file_name
 from .metadata import AppMetadata, load_app_metadata, public_metadata_dict
 from .settings import AppSettings, load_app_settings, project_root, public_settings_dict
 from .storage import load_line_data
@@ -48,6 +49,10 @@ def export_web_site(
     (destination / ".nojekyll").write_text("", encoding="utf-8")
     (data_dir / f"{DEFAULT_LINE.line_id}_timetable.json").write_text(
         json.dumps(exported_data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (data_dir / status_file_name(DEFAULT_LINE.line_id)).write_text(
+        json.dumps(build_published_line_status(exported_data, app_settings.published_site_url), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     (config_dir / "app_settings.json").write_text(

@@ -14,6 +14,7 @@ class AppSettings:
     default_direction_name: str = "神戸空港・北埠頭方面行"
     web_site_title: str = "トレイン発車 Web"
     web_site_description: str = "神戸新交通ポートアイランド線の保存済み時刻表から、先発・次発・次々発をブラウザで表示します。"
+    published_site_url: str = "https://bekuta-jp.github.io/train_hassha/"
     timezone: str = "Asia/Tokyo"
 
 

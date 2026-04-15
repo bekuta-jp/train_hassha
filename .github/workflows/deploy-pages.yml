@@ -5,6 +5,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    - cron: "17 19 * * *"
 
 permissions:
   contents: read
@@ -36,17 +38,58 @@ jobs:
       - name: 時刻表を取得
         run: python main.py --fetch-only
 
+      - name: 公開版との差分を確認
+        id: compare
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import os
+
+          from train_hassha.config import DEFAULT_LINE
+          from train_hassha.line_status import build_line_status_summary, build_published_status_url, compare_line_statuses, fetch_published_line_status
+          from train_hassha.settings import load_app_settings
+          from train_hassha.storage import load_line_data
+
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          needs_deploy = event_name != "schedule"
+          reason = "push_or_manual"
+
+          if event_name == "schedule":
+              data = load_line_data(DEFAULT_LINE.line_id)
+              local_status = build_line_status_summary(data)
+              settings = load_app_settings()
+
+              try:
+                  published_url = build_published_status_url(settings.published_site_url, DEFAULT_LINE.line_id)
+                  remote_status = fetch_published_line_status(published_url)
+                  comparison = compare_line_statuses(local_status, remote_status)
+                  reason = comparison["relation"]
+                  needs_deploy = comparison["relation"] != "same"
+              except Exception:
+                  reason = "remote_unavailable"
+                  needs_deploy = True
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
+              print(f"needs_deploy={'true' if needs_deploy else 'false'}", file=output_file)
+              print(f"reason={reason}", file=output_file)
+          PY
+
       - name: Web サイトを生成
+        if: steps.compare.outputs.needs_deploy == 'true'
         run: python build_web_site.py
 
       - name: Pages を設定
+        if: steps.compare.outputs.needs_deploy == 'true'
         uses: actions/configure-pages@v5
 
       - name: Pages 用アーティファクトをアップロード
+        if: steps.compare.outputs.needs_deploy == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - name: Pages にデプロイ
+        if: steps.compare.outputs.needs_deploy == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
