@@ -6,6 +6,7 @@ import shutil
 from typing import Any
 
 from .config import DEFAULT_LINE
+from .metadata import AppMetadata, load_app_metadata, public_metadata_dict
 from .settings import AppSettings, load_app_settings, project_root, public_settings_dict
 from .storage import load_line_data
 from .timetable import station_code_sort_key
@@ -18,10 +19,12 @@ DEFAULT_OUTPUT_DIR = project_root() / "site"
 def export_web_site(
     data: dict[str, Any] | None = None,
     settings: AppSettings | None = None,
+    metadata: AppMetadata | None = None,
     output_dir: Path | None = None,
 ) -> Path:
     line_data = data or load_line_data(DEFAULT_LINE.line_id)
     app_settings = settings or load_app_settings()
+    app_metadata = metadata or load_app_metadata()
     destination = output_dir or DEFAULT_OUTPUT_DIR
 
     if not WEB_SOURCE_DIR.exists():
@@ -49,6 +52,10 @@ def export_web_site(
     )
     (config_dir / "app_settings.json").write_text(
         json.dumps(public_settings_dict(app_settings), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (config_dir / "app_metadata.json").write_text(
+        json.dumps(public_metadata_dict(app_metadata), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 

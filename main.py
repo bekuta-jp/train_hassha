@@ -7,12 +7,14 @@ from datetime import datetime
 
 from train_hassha.app import launch_app
 from train_hassha.config import DEFAULT_LINE
+from train_hassha.metadata import load_app_metadata
 from train_hassha.storage import get_line_data_path, load_line_data
 from train_hassha.timetable import TimetableFetchError, fetch_and_save_line, get_direction_names, get_next_departures, get_station_names
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="トレイン発車")
+    parser.add_argument("--version", action="version", version=f"トレイン発車 ver{load_app_metadata().version}")
     parser.add_argument("--fetch-only", action="store_true", help="公式サイトから時刻表を取得して保存します。")
     parser.add_argument("--list-stations", action="store_true", help="保存済み時刻表の駅一覧を表示します。")
     parser.add_argument("--list-directions", metavar="STATION", help="指定駅の方面一覧を表示します。")

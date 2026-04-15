@@ -34,6 +34,9 @@ def candidate_settings_paths() -> list[Path]:
 
     if getattr(sys, "frozen", False):
         candidates.append(Path(sys.executable).resolve().parent / "app_settings.json")
+        bundle_dir = getattr(sys, "_MEIPASS", None)
+        if bundle_dir:
+            candidates.append(Path(bundle_dir) / "app_settings.json")
 
     candidates.append(default_settings_path())
     return candidates

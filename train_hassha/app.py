@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from .config import DEFAULT_LINE
+from .metadata import load_app_metadata
 from .settings import load_app_settings
 from .storage import get_line_data_path, load_line_data
 from .timetable import (
@@ -32,8 +33,9 @@ CARD_META_NORMAL = "#5b7078"
 class TrainHasshaApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("トレイン発車")
-        self.root.geometry("980x720")
+        self.metadata = load_app_metadata()
+        self.root.title(f"トレイン発車 ver{self.metadata.version}")
+        self.root.geometry("980x740")
         self.root.minsize(900, 640)
 
         self.data: dict | None = None
@@ -71,6 +73,13 @@ class TrainHasshaApp:
         style.configure("Panel.TFrame", background="#fffaf1")
         style.configure("Header.TLabel", background="#f7f1e3", foreground="#114b5f", font=("Helvetica", 20, "bold"))
         style.configure("SubHeader.TLabel", background="#f7f1e3", foreground="#44646f", font=("Helvetica", 11))
+        style.configure(
+            "Version.TLabel",
+            background="#f7f1e3",
+            foreground="#114b5f",
+            font=("Helvetica", 11, "bold"),
+            padding=(12, 6),
+        )
         style.configure("Label.TLabel", background="#fffaf1", foreground="#17313b", font=("Helvetica", 11))
         style.configure("Value.TLabel", background="#fffaf1", foreground="#114b5f", font=("Helvetica", 12, "bold"))
         style.configure("ClockMode.TLabel", background="#fffaf1", foreground="#44646f", font=("Helvetica", 11, "bold"))
@@ -91,6 +100,7 @@ class TrainHasshaApp:
         header_frame.columnconfigure(0, weight=1)
 
         ttk.Label(header_frame, text="トレイン発車", style="Header.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(header_frame, text=f"ver{self.metadata.version}", style="Version.TLabel").grid(row=0, column=1, rowspan=2, sticky="e")
         ttk.Label(
             header_frame,
             text="神戸新交通ポートアイランド線の保存済み時刻表から、先発・次発・次々発を表示します。",

@@ -3,6 +3,16 @@
 神戸新交通ポートアイランド線の保存済み時刻表を使って、各駅の先発・次発・次々発を表示するアプリです。  
 Python / Tkinter のデスクトップ版と、Google Sites へ埋め込み可能な静的 Web 版を用意しています。
 
+## バージョン
+
+現在のバージョンは `ver1.0` です。  
+共通のバージョン情報と Web 表示用の更新履歴は [config/app_metadata.json](/Users/ohtsuka/workspace/train-hassha/config/app_metadata.json) で管理しています。
+
+今後の変更では、次の 2 か所をあわせて更新してください。
+
+- この README の `更新履歴`
+- Web 版に表示される更新履歴の元データ `config/app_metadata.json`
+
 ## できること
 
 - 駅名を選択して発車案内を表示
@@ -76,12 +86,28 @@ run_windows.bat
 
 この設定はデスクトップ版の初期表示と、Web 版の公開ページの初期表示の両方に使われます。
 
+## 更新履歴
+
+### ver1.0 - 2026-04-15
+
+- 神戸新交通ポートアイランド線の発車案内アプリを初回リリース
+- 公式サイトからの時刻表取得と保存に対応
+- デスクトップ版と GitHub Pages / Google Sites 向けの Web 版を追加
+- 現在時刻の大表示、5分以内の列車の赤点滅、デバッグ時刻変更に対応
+- 駅番号順の駅選択とデフォルト表示設定に対応
+
 ## コマンドライン利用
 
 時刻表を取得して保存:
 
 ```bash
 .venv/bin/python main.py --fetch-only
+```
+
+バージョンを表示:
+
+```bash
+.venv/bin/python main.py --version
 ```
 
 保存済み時刻表の駅一覧を表示:
@@ -123,6 +149,8 @@ run_windows.bat
 ```
 
 出力先は `site/` です。
+
+Web 版のバージョン表記と更新履歴も、[config/app_metadata.json](/Users/ohtsuka/workspace/train-hassha/config/app_metadata.json) から自動で反映されます。
 
 ## GitHub Pages 公開
 

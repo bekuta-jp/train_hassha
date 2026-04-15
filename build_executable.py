@@ -22,7 +22,24 @@ def main() -> int:
         return 1
 
     mode_flag = "--onedir" if sys.platform == "darwin" else "--onefile"
-    command = [str(executable), "--noconfirm", "--clean", mode_flag, "--windowed", "--name", "train-hassha", str(ROOT / "main.py")]
+    separator = ";" if sys.platform == "win32" else ":"
+    add_data_args = [
+        "--add-data",
+        f"{ROOT / 'config' / 'app_settings.json'}{separator}.",
+        "--add-data",
+        f"{ROOT / 'config' / 'app_metadata.json'}{separator}.",
+    ]
+    command = [
+        str(executable),
+        "--noconfirm",
+        "--clean",
+        mode_flag,
+        "--windowed",
+        "--name",
+        "train-hassha",
+        *add_data_args,
+        str(ROOT / "main.py"),
+    ]
 
     environment = os.environ.copy()
     environment["PYINSTALLER_CONFIG_DIR"] = str(ROOT / ".pyinstaller")

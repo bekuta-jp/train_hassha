@@ -1,5 +1,6 @@
 const DATA_URL = "./assets/data/port_liner_timetable.json";
 const SETTINGS_URL = "./assets/config/app_settings.json";
+const METADATA_URL = "./assets/config/app_metadata.json";
 const TOKYO_TIMEZONE = "Asia/Tokyo";
 const DAY_TYPE_LABELS = { weekday: "平日ダイヤ", holiday: "土日祝ダイヤ" };
 
@@ -12,11 +13,15 @@ const stationCode = document.querySelector("#station-code");
 const statusText = document.querySelector("#status-text");
 const siteTitle = document.querySelector("#site-title");
 const siteDescription = document.querySelector("#site-description");
+const versionBadge = document.querySelector("#version-badge");
+const footerVersion = document.querySelector("#footer-version");
+const changelogList = document.querySelector("#changelog-list");
 const cards = Array.from(document.querySelectorAll(".train-card"));
 
 const state = {
   data: null,
   settings: null,
+  metadata: null,
   blinkOn: false,
 };
 
@@ -331,6 +336,56 @@ function renderCards(departures) {
   });
 }
 
+function renderChangelog(entries) {
+  changelogList.innerHTML = "";
+
+  if (!Array.isArray(entries) || entries.length === 0) {
+    const fallback = document.createElement("article");
+    fallback.className = "changelog-entry";
+    fallback.innerHTML = '<p class="changelog-entry-title">更新履歴はまだありません。</p>';
+    changelogList.append(fallback);
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const article = document.createElement("article");
+    article.className = "changelog-entry";
+
+    const header = document.createElement("div");
+    header.className = "changelog-entry-header";
+
+    const version = document.createElement("p");
+    version.className = "changelog-entry-version";
+    version.textContent = `ver${entry.version || "--"}`;
+    header.append(version);
+
+    const date = document.createElement("p");
+    date.className = "changelog-entry-date";
+    date.textContent = entry.date || "";
+    header.append(date);
+
+    const title = document.createElement("p");
+    title.className = "changelog-entry-title";
+    title.textContent = entry.title || "";
+
+    article.append(header);
+    article.append(title);
+
+    if (Array.isArray(entry.items) && entry.items.length > 0) {
+      const list = document.createElement("ul");
+      list.className = "changelog-entry-items";
+      entry.items.forEach((item) => {
+        const node = document.createElement("li");
+        node.textContent = item;
+        list.append(node);
+      });
+      article.append(list);
+    }
+
+    changelogList.append(article);
+  });
+}
+
 function refreshBoard() {
   const now = new Date();
   const nowParts = getTokyoParts(now);
@@ -365,14 +420,22 @@ async function loadJson(url) {
 
 async function initialize() {
   try {
-    const [data, settings] = await Promise.all([loadJson(DATA_URL), loadJson(SETTINGS_URL)]);
+    const [data, settings, metadata] = await Promise.all([
+      loadJson(DATA_URL),
+      loadJson(SETTINGS_URL),
+      loadJson(METADATA_URL),
+    ]);
     state.data = data;
     state.settings = settings;
+    state.metadata = metadata;
 
-    document.title = settings.web_site_title || "トレイン発車 Web";
+    document.title = `${settings.web_site_title || "トレイン発車 Web"} ver${metadata.version || "--"}`;
     siteTitle.textContent = settings.web_site_title || "トレイン発車 Web";
     siteDescription.textContent = settings.web_site_description || siteDescription.textContent;
     fetchedAt.textContent = data.fetched_at || "不明";
+    versionBadge.textContent = `ver${metadata.version || "--"}`;
+    footerVersion.textContent = `ver${metadata.version || "--"}`;
+    renderChangelog(metadata.changelog || []);
 
     fillStationOptions();
     const defaults = resolveDefaults();
