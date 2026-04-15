@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 import unittest
 
-from train_hassha.timetable import current_day_type, get_next_departures
+from train_hassha.timetable import current_day_type, get_next_departures, get_station_names
 
 
 def sample_data() -> dict:
@@ -83,6 +83,22 @@ class TimetableTests(unittest.TestCase):
         self.assertEqual("weekday", departures[0]["day_type"])
         self.assertEqual("00:05", departures[0]["time"])
         self.assertEqual("24:05", departures[0]["timetable_time"])
+
+    def test_station_names_are_sorted_by_station_code(self) -> None:
+        data = {
+            "stations": [
+                {"station_code": "PL08", "station_name": "中埠頭"},
+                {"station_code": "P03", "station_name": "ポートターミナル"},
+                {"station_code": "P01", "station_name": "三宮"},
+                {"station_code": "P09", "station_name": "神戸空港"},
+                {"station_code": "PL07", "station_name": "南公園"},
+            ]
+        }
+
+        self.assertEqual(
+            ["三宮", "ポートターミナル", "神戸空港", "南公園", "中埠頭"],
+            get_station_names(data),
+        )
 
 
 if __name__ == "__main__":

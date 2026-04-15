@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from .config import DEFAULT_LINE
+from .settings import load_app_settings
 from .storage import get_line_data_path, load_line_data
 from .timetable import (
     DAY_TYPE_LABELS,
@@ -36,6 +37,7 @@ class TrainHasshaApp:
         self.root.minsize(900, 640)
 
         self.data: dict | None = None
+        self.settings = load_app_settings()
         self.fetch_queue: queue.Queue[tuple[str, object]] = queue.Queue()
 
         self.station_var = tk.StringVar()
@@ -246,8 +248,9 @@ class TrainHasshaApp:
         station_names = get_station_names(self.data)
         self.station_combo["values"] = station_names
 
+        preferred_station = self.settings.default_station_name
         if station_names and self.station_var.get() not in station_names:
-            self.station_var.set(station_names[0])
+            self.station_var.set(preferred_station if preferred_station in station_names else station_names[0])
 
         self._populate_direction_choices()
 
@@ -261,8 +264,9 @@ class TrainHasshaApp:
         direction_names = get_direction_names(self.data, self.station_var.get())
         self.direction_combo["values"] = direction_names
 
+        preferred_direction = self.settings.default_direction_name
         if direction_names and self.direction_var.get() not in direction_names:
-            self.direction_var.set(direction_names[0])
+            self.direction_var.set(preferred_direction if preferred_direction in direction_names else direction_names[0])
 
         self._refresh_departures()
 

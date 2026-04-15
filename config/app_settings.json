@@ -1,0 +1,7 @@
+{
+  "default_station_name": "三宮",
+  "default_direction_name": "神戸空港・北埠頭方面行",
+  "web_site_title": "トレイン発車 Web",
+  "web_site_description": "神戸新交通ポートアイランド線の保存済み時刻表から、先発・次発・次々発をブラウザで表示します。",
+  "timezone": "Asia/Tokyo"
+}

@@ -26,6 +26,15 @@ def normalize_text(value: str | None) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
 
 
+def station_code_sort_key(station_code: str) -> tuple[str, int, str]:
+    match = re.fullmatch(r"([A-Z]+)(\d+)", station_code)
+    if match is None:
+        return (station_code, 0, station_code)
+
+    prefix, number = match.groups()
+    return (prefix, int(number), station_code)
+
+
 def to_japanese_url(url: str) -> str:
     absolute = urljoin("https://www.knt-liner.co.jp/", url)
     parsed = urlparse(absolute)
@@ -108,7 +117,7 @@ def _parse_station_catalog(html: str, config: LineConfig) -> list[dict[str, str]
     if not stations:
         raise TimetableFetchError("路線ページから駅一覧を抽出できませんでした。")
 
-    return stations
+    return sorted(stations, key=lambda station: station_code_sort_key(station["station_code"]))
 
 
 def _parse_departures(table: Any, destination_map: dict[str, str]) -> list[dict[str, Any]]:
@@ -217,7 +226,7 @@ def fetch_line_data(config: LineConfig = DEFAULT_LINE) -> dict[str, Any]:
         "line_name": config.line_name,
         "source_url": config.route_page_url,
         "fetched_at": datetime.now().isoformat(timespec="seconds"),
-        "stations": stations,
+        "stations": sorted(stations, key=lambda station: station_code_sort_key(station["station_code"])),
     }
 
 
@@ -228,7 +237,8 @@ def fetch_and_save_line(config: LineConfig = DEFAULT_LINE) -> tuple[dict[str, An
 
 
 def get_station_names(data: dict[str, Any]) -> list[str]:
-    return [station["station_name"] for station in data.get("stations", [])]
+    stations = sorted(data.get("stations", []), key=lambda station: station_code_sort_key(station.get("station_code", "")))
+    return [station["station_name"] for station in stations]
 
 
 def get_station(data: dict[str, Any], station_name: str) -> dict[str, Any]:

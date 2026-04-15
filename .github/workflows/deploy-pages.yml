@@ -1,0 +1,52 @@
+name: Web 公開
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Python をセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 依存関係をインストール
+        run: python -m pip install -r requirements.txt
+
+      - name: 時刻表を取得
+        run: python main.py --fetch-only
+
+      - name: Web サイトを生成
+        run: python build_web_site.py
+
+      - name: Pages を設定
+        uses: actions/configure-pages@v5
+
+      - name: Pages 用アーティファクトをアップロード
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Pages にデプロイ
+        id: deployment
+        uses: actions/deploy-pages@v4

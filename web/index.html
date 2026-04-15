@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>トレイン発車 Web</title>
+    <meta
+      name="description"
+      content="神戸新交通ポートアイランド線の先発・次発・次々発を表示するブラウザ版アプリ"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Orbitron:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Kobe New Transit Port Liner</p>
+          <h1 id="site-title">トレイン発車 Web</h1>
+          <p id="site-description" class="hero-description">
+            神戸新交通ポートアイランド線の保存済み時刻表から、先発・次発・次々発を表示します。
+          </p>
+        </div>
+        <div class="hero-clock">
+          <p class="clock-label">現在時刻 / JST</p>
+          <p id="clock-value" class="clock-value">--:--:--</p>
+          <p id="day-type-badge" class="day-type-badge">--</p>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="control-panel">
+          <div class="panel-row">
+            <label class="panel-label" for="station-select">駅名</label>
+            <select id="station-select" class="panel-select"></select>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label" for="direction-select">方面</label>
+            <select id="direction-select" class="panel-select"></select>
+          </div>
+          <div class="meta-grid">
+            <div class="meta-card">
+              <p class="meta-label">駅番号</p>
+              <p id="station-code" class="meta-value">--</p>
+            </div>
+            <div class="meta-card">
+              <p class="meta-label">最終更新</p>
+              <p id="fetched-at" class="meta-value meta-value-small">--</p>
+            </div>
+          </div>
+          <div class="notice">
+            <p>5分以内に発車する列車は赤く点滅します。</p>
+            <p>URL の `station` と `direction` パラメータで埋め込み時の初期表示も上書きできます。</p>
+          </div>
+        </section>
+
+        <section class="board">
+          <article class="train-card" data-card-index="0">
+            <p class="card-kicker">先発</p>
+            <p class="card-time">--:--</p>
+            <p class="card-destination">読み込み中です</p>
+            <p class="card-meta"></p>
+          </article>
+          <article class="train-card" data-card-index="1">
+            <p class="card-kicker">次発</p>
+            <p class="card-time">--:--</p>
+            <p class="card-destination">読み込み中です</p>
+            <p class="card-meta"></p>
+          </article>
+          <article class="train-card" data-card-index="2">
+            <p class="card-kicker">次々発</p>
+            <p class="card-time">--:--</p>
+            <p class="card-destination">読み込み中です</p>
+            <p class="card-meta"></p>
+          </article>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p id="status-text">公開用データを読み込み中です。</p>
+      </footer>
+    </div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
